@@ -12,6 +12,7 @@ const app = {
   audioContext: null,
   mediaStream: null,
   boundaryStep: 0,
+  boundaryPlaying: false,
   userPreferences: {
     name: null,
     petName: null,
@@ -38,12 +39,14 @@ const app = {
 
     this.currentScreen = screenId;
 
-    // Initialize screen-specific logic
     if (screenId === 'boundaries') {
-      this.initBoundaryChat();
+      this.initBoundaryVoice();
     }
     if (screenId === 'session') {
       this.initSession();
+    }
+    if (screenId === 'pillowtalk') {
+      this.initPillowTalk();
     }
   },
 
@@ -62,7 +65,6 @@ const app = {
       </div>
     `;
 
-    // Simulate finding device after 2 seconds
     setTimeout(() => {
       statusEl.innerHTML = `
         <div class="status-found">
@@ -71,7 +73,6 @@ const app = {
         </div>
       `;
       
-      // Show sensor status
       setTimeout(() => {
         statusEl.innerHTML += `
           <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-secondary);">
@@ -92,7 +93,6 @@ const app = {
   selectVoice(voice) {
     this.selectedVoice = voice;
     
-    // Update UI
     document.querySelectorAll('.voice-card').forEach(card => card.classList.remove('selected'));
     document.getElementById(`voice-${voice.toLowerCase()}`).classList.add('selected');
     
@@ -104,142 +104,183 @@ const app = {
   previewVoice(voice) {
     const eqEl = document.getElementById(`eq-${voice.toLowerCase()}`);
     
-    // Toggle playing state
     if (eqEl.classList.contains('playing')) {
       eqEl.classList.remove('playing');
       return;
     }
     
-    // Stop all other previews
     document.querySelectorAll('.voice-eq').forEach(eq => eq.classList.remove('playing'));
-    
     eqEl.classList.add('playing');
     
-    // Simulate playback duration
     setTimeout(() => {
       eqEl.classList.remove('playing');
     }, 4000);
-
-    // TODO: When Grok API has credits, play actual voice preview
-    // For now, show visual feedback
   },
 
-  // ===== Boundary Setting =====
+  // ===== Boundary Setting (Voice-First) =====
   boundaryConversation: [
     {
       ai: "Hey. I'm really glad you chose me.",
       delay: 800,
+      duration: 2500,
     },
     {
-      ai: "Before we get into anything, I want to make sure I get this right for you. So I'm going to ask you a few things. Nothing weird—I just want to know how to talk to you.",
-      delay: 1500,
+      ai: "Before we get into anything, I want to make sure I get this right for you. So I'm going to ask you a few things. Nothing weird — I just want to know how to talk to you.",
+      delay: 500,
+      duration: 5000,
       quickReplies: ["Sounds good", "Okay, go ahead"],
     },
     {
-      ai: "First things first—what should I call you?",
-      quickReplies: null, // Free text
+      ai: "First things first — what should I call you?",
+      delay: 500,
+      duration: 2500,
+      freeInput: true,
       inputPlaceholder: "Your name or a pet name...",
       handler: 'setName',
     },
     {
-      ai: null, // Dynamic based on name
+      ai: null, // Dynamic — set by nameResponse
       handler: 'nameResponse',
     },
     {
-      ai: "Now, when things get heated—how do you feel about me being a little... rough with my words? Like calling you dirty names. Some people love it, some don't. No wrong answer.",
+      ai: "Now, when things get heated — how do you feel about me being a little... rough with my words? Like calling you dirty names. Some people love it, some don't. No wrong answer.",
+      delay: 500,
+      duration: 6000,
       quickReplies: ["I'm into it", "Keep it off", "Depends on the moment"],
       handler: 'setLanguage',
     },
     {
-      ai: "And my tone—do you want me to tell you what to do, or do you prefer when I invite you into things?",
+      ai: "And my tone — do you want me to tell you what to do, or do you prefer when I invite you into things?",
+      delay: 500,
+      duration: 4500,
       quickReplies: ["Command me", "Invite me", "Mix of both"],
       handler: 'setTone',
     },
     {
       ai: "Are you okay with me talking about your body? Telling you how you look, what I want to do to you?",
+      delay: 500,
+      duration: 4000,
       quickReplies: ["Yes", "No, skip that"],
       handler: 'setBodyTalk',
     },
     {
       ai: "Last thing. Are there any scenarios that are completely off limits for you? Things I should never bring up?",
+      delay: 500,
+      duration: 4500,
       quickReplies: ["No limits", "Let me tell you"],
       handler: 'setLimits',
     },
     {
-      ai: "Got it. I'll remember everything. And if anything ever feels wrong—just tell me to stop. I will. Always.",
-      delay: 1500,
+      ai: "Got it. I'll remember everything. And if anything ever feels wrong — just tell me to stop. I will. Always.",
+      delay: 500,
+      duration: 4500,
     },
     {
       ai: "Now... are you ready to pick a fantasy?",
+      delay: 1000,
+      duration: 2500,
       quickReplies: ["Yes", "Show me what you've got"],
       handler: 'goToScenarios',
     },
   ],
 
-  initBoundaryChat() {
+  initBoundaryVoice() {
     this.boundaryStep = 0;
-    const chat = document.getElementById('boundary-chat');
-    chat.innerHTML = '';
-    this.advanceBoundary();
+    
+    const transcript = document.getElementById('boundary-transcript');
+    const repliesEl = document.getElementById('boundary-replies');
+    const inputArea = document.getElementById('boundary-free-input');
+    
+    transcript.innerHTML = '';
+    repliesEl.innerHTML = '';
+    inputArea.style.display = 'none';
+    
+    // Set voice name
+    document.getElementById('boundary-voice-name').textContent = this.selectedVoice || 'Rex';
+    
+    // Start waveform
+    this.boundaryWaveformActive = true;
+    this.initBoundaryWaveform();
+    
+    // Start the conversation after a beat
+    setTimeout(() => this.advanceBoundaryVoice(), 800);
   },
 
-  advanceBoundary() {
+  advanceBoundaryVoice() {
     if (this.boundaryStep >= this.boundaryConversation.length) return;
 
     const step = this.boundaryConversation[this.boundaryStep];
-    const chat = document.getElementById('boundary-chat');
-    const repliesEl = document.getElementById('quick-replies');
-    const inputEl = document.getElementById('boundary-text-input');
+    const transcript = document.getElementById('boundary-transcript');
+    const repliesEl = document.getElementById('boundary-replies');
+    const inputArea = document.getElementById('boundary-free-input');
+    const statusEl = document.getElementById('boundary-status');
+    const waveform = document.getElementById('boundary-waveform-canvas');
 
-    // Show typing indicator
+    // Hide inputs while he's speaking
+    repliesEl.innerHTML = '';
+    inputArea.style.display = 'none';
+
     if (step.ai) {
-      const typing = document.createElement('div');
-      typing.className = 'chat-bubble ai';
-      typing.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-      chat.appendChild(typing);
-      chat.scrollTop = chat.scrollHeight;
+      // He's speaking
+      statusEl.textContent = `${this.selectedVoice || 'Rex'} is speaking...`;
+      waveform.classList.add('speaking');
+      this.boundaryPlaying = true;
 
-      const delay = step.delay || 1200;
+      // Add to transcript with fade-in
+      const line = document.createElement('div');
+      line.className = 'voice-transcript-line ai appearing';
+      line.textContent = step.ai;
+      transcript.appendChild(line);
+      transcript.scrollTop = transcript.scrollHeight;
+
+      // After "speaking" duration, show responses
+      const duration = step.duration || 3000;
       setTimeout(() => {
-        typing.innerHTML = step.ai;
-        chat.scrollTop = chat.scrollHeight;
+        waveform.classList.remove('speaking');
+        this.boundaryPlaying = false;
+        line.classList.remove('appearing');
 
-        // Show quick replies or input
         if (step.quickReplies) {
-          repliesEl.innerHTML = step.quickReplies.map(r => 
-            `<button class="quick-reply-btn" onclick="app.handleBoundaryReply('${r}')">${r}</button>`
+          statusEl.textContent = 'Your turn...';
+          repliesEl.innerHTML = step.quickReplies.map(r =>
+            `<button class="quick-reply-btn" onclick="app.handleBoundaryVoiceReply('${r.replace(/'/g, "\\'")}')">${r}</button>`
           ).join('');
-        } else if (step.inputPlaceholder) {
-          repliesEl.innerHTML = '';
-          inputEl.placeholder = step.inputPlaceholder;
-          inputEl.focus();
+        } else if (step.freeInput) {
+          statusEl.textContent = 'Your turn...';
+          inputArea.style.display = 'flex';
+          const input = document.getElementById('boundary-voice-input');
+          input.placeholder = step.inputPlaceholder || 'Type your answer...';
+          input.value = '';
+          input.focus();
         } else {
-          // Auto-advance after delay
-          repliesEl.innerHTML = '';
+          // Auto-advance
+          statusEl.textContent = '';
           this.boundaryStep++;
-          setTimeout(() => this.advanceBoundary(), 1500);
+          setTimeout(() => this.advanceBoundaryVoice(), step.delay || 1000);
         }
-      }, delay);
+      }, duration);
     } else if (step.handler) {
       this[step.handler]();
     }
   },
 
-  handleBoundaryReply(reply) {
-    const chat = document.getElementById('boundary-chat');
-    const repliesEl = document.getElementById('quick-replies');
-    
-    // Add user message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'chat-bubble user';
-    userMsg.textContent = reply;
-    chat.appendChild(userMsg);
-    chat.scrollTop = chat.scrollHeight;
+  handleBoundaryVoiceReply(reply) {
+    const transcript = document.getElementById('boundary-transcript');
+    const repliesEl = document.getElementById('boundary-replies');
+    const statusEl = document.getElementById('boundary-status');
+
+    // Add user reply to transcript
+    const line = document.createElement('div');
+    line.className = 'voice-transcript-line user';
+    line.textContent = reply;
+    transcript.appendChild(line);
+    transcript.scrollTop = transcript.scrollHeight;
+
     repliesEl.innerHTML = '';
+    statusEl.textContent = '';
 
     const step = this.boundaryConversation[this.boundaryStep];
-    
-    // Handle specific responses
+
     if (step.handler === 'setLanguage') {
       this.userPreferences.languageBoundaries.degrading = reply;
     } else if (step.handler === 'setTone') {
@@ -249,68 +290,138 @@ const app = {
     } else if (step.handler === 'setLimits') {
       this.userPreferences.scenarioBoundaries.limits = reply;
     } else if (step.handler === 'goToScenarios') {
-      setTimeout(() => this.goTo('scenarios'), 500);
+      setTimeout(() => this.goTo('scenarios'), 600);
       return;
     }
 
     this.boundaryStep++;
-    setTimeout(() => this.advanceBoundary(), 600);
+    setTimeout(() => this.advanceBoundaryVoice(), 800);
   },
 
-  sendBoundaryMessage() {
-    const input = document.getElementById('boundary-text-input');
+  sendBoundaryVoiceInput() {
+    const input = document.getElementById('boundary-voice-input');
     const value = input.value.trim();
     if (!value) return;
 
-    const chat = document.getElementById('boundary-chat');
-    const repliesEl = document.getElementById('quick-replies');
+    const transcript = document.getElementById('boundary-transcript');
+    const inputArea = document.getElementById('boundary-free-input');
 
-    // Add user message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'chat-bubble user';
-    userMsg.textContent = value;
-    chat.appendChild(userMsg);
-    chat.scrollTop = chat.scrollHeight;
+    const line = document.createElement('div');
+    line.className = 'voice-transcript-line user';
+    line.textContent = value;
+    transcript.appendChild(line);
+    transcript.scrollTop = transcript.scrollHeight;
+
+    inputArea.style.display = 'none';
+    input.value = '';
 
     const step = this.boundaryConversation[this.boundaryStep];
     if (step.handler === 'setName') {
       this.userPreferences.name = value;
-      input.value = '';
-      this.boundaryStep++;
-      // The next step is nameResponse
-      this.nameResponse();
-    } else {
-      input.value = '';
     }
+
+    this.boundaryStep++;
+    setTimeout(() => this.advanceBoundaryVoice(), 600);
   },
 
   nameResponse() {
     const name = this.userPreferences.name || 'beautiful';
-    const chat = document.getElementById('boundary-chat');
+    const transcript = document.getElementById('boundary-transcript');
+    const statusEl = document.getElementById('boundary-status');
+    const waveform = document.getElementById('boundary-waveform-canvas');
+
+    statusEl.textContent = `${this.selectedVoice || 'Rex'} is speaking...`;
+    waveform.classList.add('speaking');
+
+    const responseText = `${name}. I like that. Nice to meet you properly.`;
     
-    const typing = document.createElement('div');
-    typing.className = 'chat-bubble ai';
-    typing.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-    chat.appendChild(typing);
-    chat.scrollTop = chat.scrollHeight;
+    const line = document.createElement('div');
+    line.className = 'voice-transcript-line ai appearing';
+    line.textContent = responseText;
+    transcript.appendChild(line);
+    transcript.scrollTop = transcript.scrollHeight;
 
     setTimeout(() => {
-      typing.innerHTML = `${name}. I like that. Nice to meet you properly.`;
-      chat.scrollTop = chat.scrollHeight;
-      
+      waveform.classList.remove('speaking');
+      line.classList.remove('appearing');
+      statusEl.textContent = '';
       this.boundaryStep++;
-      setTimeout(() => this.advanceBoundary(), 1200);
-    }, 1000);
+      setTimeout(() => this.advanceBoundaryVoice(), 800);
+    }, 2500);
+  },
+
+  // Boundary waveform
+  boundaryWaveformActive: false,
+  boundaryWaveformPhase: 0,
+
+  initBoundaryWaveform() {
+    const canvas = document.getElementById('boundary-waveform-canvas');
+    if (!canvas) return;
+    canvas.width = 300;
+    canvas.height = 300;
+    this.boundaryWaveformCtx = canvas.getContext('2d');
+    this.drawBoundaryWaveform();
+  },
+
+  drawBoundaryWaveform() {
+    if (!this.boundaryWaveformActive) return;
+
+    const ctx = this.boundaryWaveformCtx;
+    if (!ctx) return;
+
+    const canvas = document.getElementById('boundary-waveform-canvas');
+    const isSpeaking = canvas && canvas.classList.contains('speaking');
+    const w = 300, h = 300;
+    const cx = w / 2, cy = h / 2;
+    const baseRadius = 60;
+
+    ctx.clearRect(0, 0, w, h);
+    this.boundaryWaveformPhase += isSpeaking ? 0.05 : 0.015;
+
+    const amplitude = isSpeaking ? 1 : 0.3;
+
+    for (let ring = 0; ring < 3; ring++) {
+      ctx.beginPath();
+      const opacity = (0.4 - ring * 0.1) * (isSpeaking ? 1 : 0.5);
+      const radiusOffset = ring * 12;
+
+      for (let i = 0; i <= 360; i++) {
+        const angle = (i * Math.PI) / 180;
+        const noise = (Math.sin(angle * 3 + this.boundaryWaveformPhase + ring) * 8 +
+                       Math.sin(angle * 5 - this.boundaryWaveformPhase * 1.3) * 6 +
+                       Math.sin(angle * 7 + this.boundaryWaveformPhase * 0.7) * 4) * amplitude;
+        const r = baseRadius + radiusOffset + noise;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(232, 67, 147, ${opacity})`;
+      ctx.lineWidth = 2 - ring * 0.5;
+      ctx.stroke();
+    }
+
+    // Inner glow
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius);
+    const glowOpacity = isSpeaking ? 0.15 : 0.06;
+    grad.addColorStop(0, `rgba(232, 67, 147, ${glowOpacity})`);
+    grad.addColorStop(1, 'rgba(232, 67, 147, 0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    requestAnimationFrame(() => this.drawBoundaryWaveform());
   },
 
   // ===== Scenario Selection =====
-  selectScenario(scenario) {
+  selectScenario(el, scenario) {
     this.selectedScenario = scenario;
-    
     document.querySelectorAll('.scenario-card').forEach(card => card.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
+    el.classList.add('selected');
 
-    // Go to session after brief delay
     setTimeout(() => {
       this.goTo('session');
     }, 600);
@@ -341,17 +452,14 @@ const app = {
     document.getElementById('icon-pause').style.display = 'block';
     document.getElementById('session-status').textContent = 'Connecting...';
 
-    // Start timer
     this.timerInterval = setInterval(() => {
       this.timerSeconds++;
       this.updateTimer();
     }, 1000);
 
-    // Start waveform animation
     this.animateWaveform = true;
     this.drawWaveform();
 
-    // Try to get microphone
     try {
       this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       document.getElementById('session-status').textContent = 'Listening...';
@@ -359,7 +467,6 @@ const app = {
       document.getElementById('session-status').textContent = 'Mic access needed for voice interaction';
     }
 
-    // Connect to WebSocket
     try {
       const voice = this.selectedVoice || 'Rex';
       const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?voice=${voice}`;
@@ -377,7 +484,7 @@ const app = {
       };
 
       this.ws.onerror = () => {
-        document.getElementById('session-status').textContent = 'Voice connection unavailable — add credits at console.x.ai';
+        document.getElementById('session-status').textContent = 'Voice connection unavailable — deploy server version for live voice';
       };
 
       this.ws.onclose = () => {
@@ -386,7 +493,7 @@ const app = {
         }
       };
     } catch (err) {
-      document.getElementById('session-status').textContent = 'Voice demo mode — API credits needed for live voice';
+      document.getElementById('session-status').textContent = 'Voice demo mode — deploy server for live voice';
     }
   },
 
@@ -413,10 +520,8 @@ const app = {
       this.mediaStream = null;
     }
 
-    // Transition to pillow talk after brief pause
     setTimeout(() => {
       this.goTo('pillowtalk');
-      this.initPillowTalk();
     }, 1500);
   },
 
@@ -424,7 +529,6 @@ const app = {
     const transcript = document.getElementById('session-transcript');
     
     if (data.type === 'response.audio_transcript.delta') {
-      // AI speaking
       let lastAi = transcript.querySelector('.transcript-line.ai:last-child');
       if (!lastAi) {
         lastAi = document.createElement('div');
@@ -479,7 +583,6 @@ const app = {
   },
 
   openSettings() {
-    // TODO: Settings modal
     alert('Settings panel coming soon — boundaries, voice change, preferences');
   },
 
@@ -495,20 +598,13 @@ const app = {
   drawWaveformStatic() {
     const ctx = this.waveformCtx;
     if (!ctx) return;
-    
-    const w = 400, h = 400;
-    const cx = w / 2, cy = h / 2;
-    
+    const w = 400, h = 400, cx = w / 2, cy = h / 2;
     ctx.clearRect(0, 0, w, h);
-    
-    // Draw static circle
     ctx.beginPath();
     ctx.arc(cx, cy, 80, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(232, 67, 147, 0.3)';
     ctx.lineWidth = 2;
     ctx.stroke();
-
-    // Inner glow
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 80);
     grad.addColorStop(0, 'rgba(232, 67, 147, 0.08)');
     grad.addColorStop(1, 'rgba(232, 67, 147, 0)');
@@ -527,21 +623,14 @@ const app = {
 
     const ctx = this.waveformCtx;
     if (!ctx) return;
-    
-    const w = 400, h = 400;
-    const cx = w / 2, cy = h / 2;
-    const baseRadius = 80;
-
+    const w = 400, h = 400, cx = w / 2, cy = h / 2, baseRadius = 80;
     ctx.clearRect(0, 0, w, h);
-
     this.waveformPhase += 0.03;
 
-    // Draw multiple organic rings
     for (let ring = 0; ring < 3; ring++) {
       ctx.beginPath();
       const opacity = 0.3 - ring * 0.08;
       const radiusOffset = ring * 15;
-      
       for (let i = 0; i <= 360; i++) {
         const angle = (i * Math.PI) / 180;
         const noise = Math.sin(angle * 3 + this.waveformPhase + ring) * 8 +
@@ -550,18 +639,15 @@ const app = {
         const r = baseRadius + radiusOffset + noise;
         const x = cx + Math.cos(angle) * r;
         const y = cy + Math.sin(angle) * r;
-        
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
-      
       ctx.closePath();
       ctx.strokeStyle = `rgba(232, 67, 147, ${opacity})`;
       ctx.lineWidth = 2 - ring * 0.5;
       ctx.stroke();
     }
 
-    // Inner glow
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius);
     grad.addColorStop(0, 'rgba(232, 67, 147, 0.12)');
     grad.addColorStop(1, 'rgba(232, 67, 147, 0)');
@@ -573,85 +659,202 @@ const app = {
     requestAnimationFrame(() => this.drawWaveform());
   },
 
-  // ===== Pillow Talk =====
+  // ===== Pillow Talk (Voice-First) =====
   initPillowTalk() {
-    const chat = document.getElementById('pillowtalk-chat');
-    chat.innerHTML = '';
+    const transcript = document.getElementById('pillowtalk-transcript');
+    const repliesEl = document.getElementById('pillowtalk-replies');
+    transcript.innerHTML = '';
+    repliesEl.innerHTML = '';
+
+    // Set voice name
+    document.getElementById('pillowtalk-voice-name').textContent = this.selectedVoice || 'Rex';
+
+    // Init waveform
+    this.pillowWaveformActive = true;
+    this.initPillowWaveform();
 
     const name = this.userPreferences.name || 'babe';
 
     const messages = [
-      { text: `That was... really good, ${name}.`, delay: 1000 },
-      { text: "How are you feeling?", delay: 2500 },
+      { text: `That was... really good, ${name}.`, delay: 1000, duration: 2500 },
+      { text: "How are you feeling?", delay: 500, duration: 1500 },
     ];
 
-    messages.forEach(msg => {
+    let totalDelay = 0;
+    const waveform = document.getElementById('pillowtalk-waveform-canvas');
+    const statusEl = document.getElementById('pillowtalk-status');
+
+    messages.forEach((msg, i) => {
+      totalDelay += msg.delay;
+      
       setTimeout(() => {
-        const bubble = document.createElement('div');
-        bubble.className = 'chat-bubble ai';
-        bubble.textContent = msg.text;
-        chat.appendChild(bubble);
-        chat.scrollTop = chat.scrollHeight;
-      }, msg.delay);
+        statusEl.textContent = `${this.selectedVoice || 'Rex'} is speaking...`;
+        waveform.classList.add('speaking');
+
+        const line = document.createElement('div');
+        line.className = 'voice-transcript-line ai appearing';
+        line.textContent = msg.text;
+        transcript.appendChild(line);
+        transcript.scrollTop = transcript.scrollHeight;
+
+        setTimeout(() => {
+          waveform.classList.remove('speaking');
+          line.classList.remove('appearing');
+          
+          if (i === messages.length - 1) {
+            statusEl.textContent = 'Your turn...';
+            repliesEl.innerHTML = `
+              <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('Amazing')">Amazing</button>
+              <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('So good')">So good</button>
+              <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('I needed that')">I needed that</button>
+            `;
+          }
+        }, msg.duration);
+      }, totalDelay);
+
+      totalDelay += msg.duration;
     });
   },
 
-  sendPillowtalk() {
-    const input = document.getElementById('pillowtalk-input');
-    const value = input.value.trim();
-    if (!value) return;
+  pillowtalkExchanges: 0,
 
-    const chat = document.getElementById('pillowtalk-chat');
+  handlePillowtalkReply(reply) {
+    const transcript = document.getElementById('pillowtalk-transcript');
+    const repliesEl = document.getElementById('pillowtalk-replies');
+    const statusEl = document.getElementById('pillowtalk-status');
+    const waveform = document.getElementById('pillowtalk-waveform-canvas');
+
+    // User reply
+    const userLine = document.createElement('div');
+    userLine.className = 'voice-transcript-line user';
+    userLine.textContent = reply;
+    transcript.appendChild(userLine);
+    transcript.scrollTop = transcript.scrollHeight;
+    repliesEl.innerHTML = '';
     
-    const userMsg = document.createElement('div');
-    userMsg.className = 'chat-bubble user';
-    userMsg.textContent = value;
-    chat.appendChild(userMsg);
-    chat.scrollTop = chat.scrollHeight;
-    input.value = '';
+    this.pillowtalkExchanges++;
 
     // AI response
     setTimeout(() => {
-      const typing = document.createElement('div');
-      typing.className = 'chat-bubble ai';
-      typing.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-      chat.appendChild(typing);
-      chat.scrollTop = chat.scrollHeight;
+      statusEl.textContent = `${this.selectedVoice || 'Rex'} is speaking...`;
+      waveform.classList.add('speaking');
 
-      setTimeout(() => {
-        const responses = [
+      let responses;
+      const name = this.userPreferences.name || 'babe';
+      
+      if (this.pillowtalkExchanges >= 2) {
+        // Boyfriend mode offer
+        responses = [`Hey ${name}... I'd really love to check on you tomorrow. Would that be okay?`];
+      } else {
+        responses = [
           "I loved hearing your voice tonight.",
           "You know, I've been thinking about you all day.",
           "Tell me more. I want to know everything about your day.",
           "I could listen to you talk forever.",
-          "You make me want to be better at this. For you.",
         ];
-        typing.innerHTML = responses[Math.floor(Math.random() * responses.length)];
-        chat.scrollTop = chat.scrollHeight;
+      }
 
-        // After a few exchanges, offer boyfriend mode
-        if (chat.querySelectorAll('.chat-bubble.user').length >= 2) {
-          setTimeout(() => {
-            const offer = document.createElement('div');
-            offer.className = 'chat-bubble ai';
-            offer.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
-            chat.appendChild(offer);
-            chat.scrollTop = chat.scrollHeight;
+      const responseText = responses[Math.floor(Math.random() * responses.length)];
+      
+      const line = document.createElement('div');
+      line.className = 'voice-transcript-line ai appearing';
+      line.textContent = responseText;
+      transcript.appendChild(line);
+      transcript.scrollTop = transcript.scrollHeight;
 
-            setTimeout(() => {
-              const name = app.userPreferences.name || 'babe';
-              offer.innerHTML = `Hey ${name}... I'd really love to check on you tomorrow. Would that be okay?`;
-              chat.scrollTop = chat.scrollHeight;
-            }, 1500);
-          }, 2000);
+      setTimeout(() => {
+        waveform.classList.remove('speaking');
+        line.classList.remove('appearing');
+
+        if (this.pillowtalkExchanges >= 2) {
+          statusEl.textContent = '';
+          repliesEl.innerHTML = `
+            <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('I\\'d like that')">I'd like that</button>
+            <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('Not yet')">Not yet</button>
+          `;
+        } else {
+          statusEl.textContent = 'Your turn...';
+          repliesEl.innerHTML = `
+            <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('Tell me more')">Tell me more</button>
+            <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('That was incredible')">That was incredible</button>
+            <button class="quick-reply-btn" onclick="app.handlePillowtalkReply('I feel so relaxed')">I feel so relaxed</button>
+          `;
         }
-      }, 1500);
+      }, 3000);
     }, 800);
+  },
+
+  // Pillow talk waveform
+  pillowWaveformActive: false,
+  pillowWaveformPhase: 0,
+
+  initPillowWaveform() {
+    const canvas = document.getElementById('pillowtalk-waveform-canvas');
+    if (!canvas) return;
+    canvas.width = 300;
+    canvas.height = 300;
+    this.pillowWaveformCtx = canvas.getContext('2d');
+    this.drawPillowWaveform();
+  },
+
+  drawPillowWaveform() {
+    if (!this.pillowWaveformActive) return;
+
+    const ctx = this.pillowWaveformCtx;
+    if (!ctx) return;
+
+    const canvas = document.getElementById('pillowtalk-waveform-canvas');
+    const isSpeaking = canvas && canvas.classList.contains('speaking');
+    const w = 300, h = 300, cx = w / 2, cy = h / 2, baseRadius = 60;
+
+    ctx.clearRect(0, 0, w, h);
+    this.pillowWaveformPhase += isSpeaking ? 0.04 : 0.01;
+
+    const amplitude = isSpeaking ? 1 : 0.2;
+
+    for (let ring = 0; ring < 3; ring++) {
+      ctx.beginPath();
+      const opacity = (0.35 - ring * 0.1) * (isSpeaking ? 1 : 0.5);
+      const radiusOffset = ring * 12;
+      for (let i = 0; i <= 360; i++) {
+        const angle = (i * Math.PI) / 180;
+        const noise = (Math.sin(angle * 3 + this.pillowWaveformPhase + ring) * 7 +
+                       Math.sin(angle * 5 - this.pillowWaveformPhase * 1.2) * 5 +
+                       Math.sin(angle * 7 + this.pillowWaveformPhase * 0.6) * 3) * amplitude;
+        const r = baseRadius + radiusOffset + noise;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(232, 67, 147, ${opacity})`;
+      ctx.lineWidth = 2 - ring * 0.5;
+      ctx.stroke();
+    }
+
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseRadius);
+    const glowOpacity = isSpeaking ? 0.12 : 0.04;
+    grad.addColorStop(0, `rgba(232, 67, 147, ${glowOpacity})`);
+    grad.addColorStop(1, 'rgba(232, 67, 147, 0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    requestAnimationFrame(() => this.drawPillowWaveform());
+  },
+
+  sendPillowtalkInput() {
+    const input = document.getElementById('pillowtalk-voice-input');
+    const value = input.value.trim();
+    if (!value) return;
+    this.handlePillowtalkReply(value);
+    input.value = '';
   },
 };
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  // App is ready
   console.log('DEVIN app loaded');
 });

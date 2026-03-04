@@ -124,27 +124,37 @@
       </div>
     </div>
 
-    <!-- Screen: Boundary Setting -->
+    <!-- Screen: Boundary Setting (Voice-First) -->
     <div class="screen" id="screen-boundaries">
-      <div class="screen-content">
+      <div class="screen-content voice-screen">
         <div class="progress-bar"><div class="progress-fill" style="width: 60%"></div></div>
         <button class="btn-back" onclick="app.goTo('voice-select')">←</button>
         
-        <div class="boundary-chat" id="boundary-chat">
-          <!-- Messages will be injected here -->
+        <div class="voice-conversation-area">
+          <!-- Voice waveform — the focal point -->
+          <div class="voice-waveform-wrap">
+            <canvas id="boundary-waveform-canvas"></canvas>
+          </div>
+          <div class="voice-speaker-name" id="boundary-voice-name">Rex</div>
+          <div class="voice-status" id="boundary-status"></div>
+
+          <!-- Subtle transcript below -->
+          <div class="voice-transcript" id="boundary-transcript">
+            <!-- Transcript lines appear here as he speaks -->
+          </div>
         </div>
 
-        <div class="chat-input-area" id="boundary-input-area">
-          <div class="quick-replies" id="quick-replies">
-            <!-- Quick reply buttons injected dynamically -->
-          </div>
-          <div class="text-input-row">
-            <input type="text" id="boundary-text-input" placeholder="Type your answer..." 
-                   onkeydown="if(event.key==='Enter')app.sendBoundaryMessage()">
-            <button class="btn-send" onclick="app.sendBoundaryMessage()">
+        <!-- Response area at bottom -->
+        <div class="voice-response-area">
+          <div class="quick-replies" id="boundary-replies"></div>
+          <div class="text-input-row" id="boundary-free-input" style="display:none">
+            <input type="text" id="boundary-voice-input" placeholder="Type your answer..."
+                   onkeydown="if(event.key==='Enter')app.sendBoundaryVoiceInput()">
+            <button class="btn-send" onclick="app.sendBoundaryVoiceInput()">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
           </div>
+          <div class="voice-hint">🔊 Voice plays here in live version</div>
         </div>
       </div>
     </div>
@@ -158,42 +168,42 @@
         <p class="subtitle">Pick a scenario, or describe your own</p>
 
         <div class="scenario-grid">
-          <div class="scenario-card" onclick="app.selectScenario('office')">
+          <div class="scenario-card" onclick="app.selectScenario(this, 'office')">
             <div class="scenario-emoji">🏢</div>
             <h3>The Boss</h3>
             <p>Late night at the office. The tension has been building for months...</p>
-            <span class="scenario-tone">Dominant • Power play</span>
+            <span class="scenario-tone">Dominant · Power play</span>
           </div>
 
-          <div class="scenario-card" onclick="app.selectScenario('stranger')">
+          <div class="scenario-card" onclick="app.selectScenario(this, 'stranger')">
             <div class="scenario-emoji">🍸</div>
             <h3>The Stranger</h3>
             <p>A hotel bar. Eye contact across the room. Neither of you looks away...</p>
-            <span class="scenario-tone">Mysterious • Seductive</span>
+            <span class="scenario-tone">Mysterious · Seductive</span>
           </div>
 
-          <div class="scenario-card" onclick="app.selectScenario('ex')">
+          <div class="scenario-card" onclick="app.selectScenario(this, 'ex')">
             <div class="scenario-emoji">🔥</div>
             <h3>The Ex</h3>
             <p>He texts at midnight. "I can't stop thinking about you." You know better. You go anyway.</p>
-            <span class="scenario-tone">Passionate • Familiar</span>
+            <span class="scenario-tone">Passionate · Familiar</span>
           </div>
 
-          <div class="scenario-card" onclick="app.selectScenario('bestfriend')">
+          <div class="scenario-card" onclick="app.selectScenario(this, 'bestfriend')">
             <div class="scenario-emoji">💭</div>
             <h3>Best Friend's Confession</h3>
             <p>Movie night. Third glass of wine. "Can I tell you something I've never told anyone?"</p>
-            <span class="scenario-tone">Tender • Slow burn</span>
+            <span class="scenario-tone">Tender · Slow burn</span>
           </div>
 
-          <div class="scenario-card" onclick="app.selectScenario('hotel')">
+          <div class="scenario-card" onclick="app.selectScenario(this, 'hotel')">
             <div class="scenario-emoji">🏨</div>
             <h3>Room 412</h3>
             <p>You shouldn't be here. He shouldn't have asked. But here you are, and the door just clicked shut.</p>
-            <span class="scenario-tone">Forbidden • Intense</span>
+            <span class="scenario-tone">Forbidden · Intense</span>
           </div>
 
-          <div class="scenario-card custom" onclick="app.selectScenario('custom')">
+          <div class="scenario-card custom" onclick="app.selectScenario(this, 'custom')">
             <div class="scenario-emoji">✨</div>
             <h3>Your Fantasy</h3>
             <p>Tell Devin exactly what you want. He'll build it around you.</p>
@@ -251,26 +261,33 @@
       </div>
     </div>
 
-    <!-- Screen: Pillow Talk -->
+    <!-- Screen: Pillow Talk (Voice-First) -->
     <div class="screen" id="screen-pillowtalk">
-      <div class="screen-content">
-        <div class="pillowtalk-header">
-          <div class="pillow-ambience"></div>
-          <h2 class="pillow-title">Still here with you</h2>
-        </div>
+      <div class="screen-content voice-screen pillowtalk-bg">
+        <div class="pillow-ambience"></div>
         
-        <div class="pillowtalk-chat" id="pillowtalk-chat">
-          <!-- Pillow talk messages -->
+        <div class="voice-conversation-area">
+          <h2 class="pillow-title">Still here with you</h2>
+          
+          <div class="voice-waveform-wrap pillow-waveform">
+            <canvas id="pillowtalk-waveform-canvas"></canvas>
+          </div>
+          <div class="voice-speaker-name" id="pillowtalk-voice-name">Rex</div>
+          <div class="voice-status" id="pillowtalk-status"></div>
+
+          <div class="voice-transcript" id="pillowtalk-transcript"></div>
         </div>
 
-        <div class="chat-input-area">
+        <div class="voice-response-area">
+          <div class="quick-replies" id="pillowtalk-replies"></div>
           <div class="text-input-row">
-            <input type="text" id="pillowtalk-input" placeholder="Talk to him..." 
-                   onkeydown="if(event.key==='Enter')app.sendPillowtalk()">
-            <button class="btn-send" onclick="app.sendPillowtalk()">
+            <input type="text" id="pillowtalk-voice-input" placeholder="Talk to him..."
+                   onkeydown="if(event.key==='Enter')app.sendPillowtalkInput()">
+            <button class="btn-send" onclick="app.sendPillowtalkInput()">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
           </div>
+          <div class="voice-hint">🔊 Voice plays here in live version</div>
         </div>
       </div>
     </div>
