@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DEVIN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Screen: Welcome / Splash -->
+    <div class="screen active" id="screen-welcome">
+      <div class="screen-content centered">
+        <div class="logo-mark">D</div>
+        <h1 class="brand">DEVIN</h1>
+        <p class="tagline">Your intimate companion</p>
+        <button class="btn btn-primary btn-glow" onclick="app.goTo('pairing')">
+          Get Started
+        </button>
+        <p class="hint">Already have an account? <a href="#" onclick="app.goTo('pairing')">Sign in</a></p>
+      </div>
+    </div>
+
+    <!-- Screen: Device Pairing -->
+    <div class="screen" id="screen-pairing">
+      <div class="screen-content">
+        <div class="progress-bar"><div class="progress-fill" style="width: 20%"></div></div>
+        <button class="btn-back" onclick="app.goTo('welcome')">←</button>
+        <div class="section-center">
+          <div class="pairing-animation" id="pairing-anim">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring delay-1"></div>
+            <div class="pulse-ring delay-2"></div>
+            <div class="device-icon">
+              <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2">
+                <ellipse cx="32" cy="32" rx="12" ry="20"/>
+                <circle cx="32" cy="20" r="4" fill="currentColor" opacity="0.5"/>
+              </svg>
+            </div>
+          </div>
+          <h2>Connect Your Device</h2>
+          <p class="subtitle">Make sure your DEVIN is powered on and nearby</p>
+          
+          <div id="pairing-status" class="pairing-status">
+            <div class="status-searching">
+              <div class="spinner"></div>
+              <span>Searching for DEVIN...</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="btn-pair" onclick="app.simulatePairing()">
+            Search for Device
+          </button>
+          <button class="btn btn-ghost" onclick="app.goTo('voice-select')">
+            Skip for now →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen: Voice Selection -->
+    <div class="screen" id="screen-voice-select">
+      <div class="screen-content">
+        <div class="progress-bar"><div class="progress-fill" style="width: 40%"></div></div>
+        <button class="btn-back" onclick="app.goTo('pairing')">←</button>
+        <h2>Choose His Voice</h2>
+        <p class="subtitle">This is who he'll be. Every whisper, every word.</p>
+        
+        <div class="voice-cards">
+          <div class="voice-card" id="voice-rex" onclick="app.selectVoice('Rex')">
+            <div class="voice-avatar">
+              <div class="avatar-circle">
+                <span>R</span>
+              </div>
+              <div class="voice-eq" id="eq-rex">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <div class="voice-info">
+              <h3>Rex</h3>
+              <p class="voice-desc">Confident & warm. The kind of voice that makes you feel safe and wanted.</p>
+              <div class="voice-tags">
+                <span class="tag">Smooth</span>
+                <span class="tag">Reassuring</span>
+                <span class="tag">Deep</span>
+              </div>
+            </div>
+            <button class="btn-play" onclick="event.stopPropagation(); app.previewVoice('Rex')">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <div class="selected-check">✓</div>
+          </div>
+
+          <div class="voice-card" id="voice-leo" onclick="app.selectVoice('Leo')">
+            <div class="voice-avatar">
+              <div class="avatar-circle leo">
+                <span>L</span>
+              </div>
+              <div class="voice-eq" id="eq-leo">
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <div class="voice-info">
+              <h3>Leo</h3>
+              <p class="voice-desc">Commanding & intense. He knows what he wants—and he wants you.</p>
+              <div class="voice-tags">
+                <span class="tag">Authoritative</span>
+                <span class="tag">Bold</span>
+                <span class="tag">Strong</span>
+              </div>
+            </div>
+            <button class="btn-play" onclick="event.stopPropagation(); app.previewVoice('Leo')">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <div class="selected-check">✓</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-voice-continue" onclick="app.goTo('boundaries')" disabled>
+          Continue with <span id="chosen-voice-name">...</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Screen: Boundary Setting -->
+    <div class="screen" id="screen-boundaries">
+      <div class="screen-content">
+        <div class="progress-bar"><div class="progress-fill" style="width: 60%"></div></div>
+        <button class="btn-back" onclick="app.goTo('voice-select')">←</button>
+        
+        <div class="boundary-chat" id="boundary-chat">
+          <!-- Messages will be injected here -->
+        </div>
+
+        <div class="chat-input-area" id="boundary-input-area">
+          <div class="quick-replies" id="quick-replies">
+            <!-- Quick reply buttons injected dynamically -->
+          </div>
+          <div class="text-input-row">
+            <input type="text" id="boundary-text-input" placeholder="Type your answer..." 
+                   onkeydown="if(event.key==='Enter')app.sendBoundaryMessage()">
+            <button class="btn-send" onclick="app.sendBoundaryMessage()">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen: Scenario Selection -->
+    <div class="screen" id="screen-scenarios">
+      <div class="screen-content">
+        <div class="progress-bar"><div class="progress-fill" style="width: 80%"></div></div>
+        <button class="btn-back" onclick="app.goTo('boundaries')">←</button>
+        <h2>Choose Your Fantasy</h2>
+        <p class="subtitle">Pick a scenario, or describe your own</p>
+
+        <div class="scenario-grid">
+          <div class="scenario-card" onclick="app.selectScenario('office')">
+            <div class="scenario-emoji">🏢</div>
+            <h3>The Boss</h3>
+            <p>Late night at the office. The tension has been building for months...</p>
+            <span class="scenario-tone">Dominant • Power play</span>
+          </div>
+
+          <div class="scenario-card" onclick="app.selectScenario('stranger')">
+            <div class="scenario-emoji">🍸</div>
+            <h3>The Stranger</h3>
+            <p>A hotel bar. Eye contact across the room. Neither of you looks away...</p>
+            <span class="scenario-tone">Mysterious • Seductive</span>
+          </div>
+
+          <div class="scenario-card" onclick="app.selectScenario('ex')">
+            <div class="scenario-emoji">🔥</div>
+            <h3>The Ex</h3>
+            <p>He texts at midnight. "I can't stop thinking about you." You know better. You go anyway.</p>
+            <span class="scenario-tone">Passionate • Familiar</span>
+          </div>
+
+          <div class="scenario-card" onclick="app.selectScenario('bestfriend')">
+            <div class="scenario-emoji">💭</div>
+            <h3>Best Friend's Confession</h3>
+            <p>Movie night. Third glass of wine. "Can I tell you something I've never told anyone?"</p>
+            <span class="scenario-tone">Tender • Slow burn</span>
+          </div>
+
+          <div class="scenario-card" onclick="app.selectScenario('hotel')">
+            <div class="scenario-emoji">🏨</div>
+            <h3>Room 412</h3>
+            <p>You shouldn't be here. He shouldn't have asked. But here you are, and the door just clicked shut.</p>
+            <span class="scenario-tone">Forbidden • Intense</span>
+          </div>
+
+          <div class="scenario-card custom" onclick="app.selectScenario('custom')">
+            <div class="scenario-emoji">✨</div>
+            <h3>Your Fantasy</h3>
+            <p>Tell Devin exactly what you want. He'll build it around you.</p>
+            <span class="scenario-tone">Anything you desire</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen: Session (Connected Mode) -->
+    <div class="screen" id="screen-session">
+      <div class="screen-content session-layout">
+        <div class="session-header">
+          <button class="btn-back" onclick="app.endSession()">✕</button>
+          <div class="session-voice-name" id="session-voice-label">Rex</div>
+          <div class="session-timer" id="session-timer">0:00</div>
+        </div>
+
+        <div class="session-visual">
+          <div class="waveform-container" id="waveform">
+            <canvas id="waveform-canvas"></canvas>
+          </div>
+          <div class="session-status-text" id="session-status">
+            Ready when you are
+          </div>
+        </div>
+
+        <div class="session-transcript" id="session-transcript">
+          <!-- Live transcript appears here -->
+        </div>
+
+        <div class="session-controls">
+          <button class="btn-control" id="btn-mute" onclick="app.toggleMute()">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+            <span>Mic On</span>
+          </button>
+          
+          <button class="btn-control btn-session-main" id="btn-session-toggle" onclick="app.toggleSession()">
+            <div class="session-btn-inner">
+              <svg viewBox="0 0 24 24" fill="currentColor" id="icon-play"><path d="M8 5v14l11-7z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" id="icon-pause" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </div>
+          </button>
+
+          <button class="btn-control" onclick="app.openSettings()">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.61 3.61 0 0112 15.6z"/>
+            </svg>
+            <span>Settings</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen: Pillow Talk -->
+    <div class="screen" id="screen-pillowtalk">
+      <div class="screen-content">
+        <div class="pillowtalk-header">
+          <div class="pillow-ambience"></div>
+          <h2 class="pillow-title">Still here with you</h2>
+        </div>
+        
+        <div class="pillowtalk-chat" id="pillowtalk-chat">
+          <!-- Pillow talk messages -->
+        </div>
+
+        <div class="chat-input-area">
+          <div class="text-input-row">
+            <input type="text" id="pillowtalk-input" placeholder="Talk to him..." 
+                   onkeydown="if(event.key==='Enter')app.sendPillowtalk()">
+            <button class="btn-send" onclick="app.sendPillowtalk()">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
